@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>URL Shortener</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+<h1>URL Shortener</h1>
+<p class="subtitle">Paste a long URL below and get a short link instantly.</p>
+<form id="shorten-form">
+<input type="url" id="url-input" placeholder="https://example.com/very/long/url" required>
+<input type="text" id="custom-code" placeholder="Custom code (optional)">
+<button type="submit">Shorten</button>
+</form>
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+<div id="result" class="result hidden">
+<p>Your short URL:</p>
+<div class="short-url-box">
+<a id="short-url-link" href="#" target="_blank"></a>
+<button id="copy-btn">Copy</button>
+</div>
+</div>
+<p id="error-msg" class="error hidden"></p>
+<h2>Recent links</h2>
+<ul id="url-list"></ul>
+</div>
+<script>
+const form = document.getElementById('shorten-form');
+const resultBox = document.getElementById('result');
+const shortLink = document.getElementById('short-url-link');
+const errorMsg = document.getElementById('error-msg');
+const urlList = document.getElementById('url-list');
+async function loadUrls() {
+const res = await fetch('/api/urls');
+const urls = await res.json();
+urlList.innerHTML = '';
+urls.forEach(function(u) {
+const li = document.createElement('li');
+const link = window.location.origin + '/' + u.short_code;
+li.innerHTML = '<a href="/' + u.short_code + '" target="_blank">' + link + '</a> -&gt; ' + u.original_url + ' <span class="clicks">(' + u.clicks + ' clicks)</span>';
+urlList.appendChild(li);
+});
+}
+form.addEventListener('submit', async function(e) {
+e.preventDefault();
+errorMsg.classList.add('hidden');
+resultBox.classList.add('hidden');
+const url = document.getElementById('url-input').value;
+const customCode = document.getElementById('custom-code').value;
+const res = await fetch('/api/shorten', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ url: url, custom_code: customCode })
+});
+const data = await res.json();
+if (!res.ok) {
+errorMsg.textContent = data.error || 'Something went wrong.';
+errorMsg.classList.remove('hidden');
+return;
+}
+shortLink.href = data.short_url;
+shortLink.textContent = data.short_url;
+resultBox.classList.remove('hidden');
+form.reset();
+loadUrls();
+});
+document.getElementById('copy-btn').addEventListener('click', function() {
+navigator.clipboard.writeText(shortLink.href);
+const btn = document.getElementById('copy-btn');
+btn.textContent = 'Copied!';
+setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+});
+loadUrls();
+</script>
+</body>
+</html>
